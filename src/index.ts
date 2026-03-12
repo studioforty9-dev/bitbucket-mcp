@@ -1854,6 +1854,136 @@ class BitbucketServer {
             required: ["workspace", "repo_slug"],
           },
         },
+        {
+          name: "listBranches",
+          description: "List branches in a repository",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workspace: { type: "string", description: "Bitbucket workspace name" },
+              repo_slug: { type: "string", description: "Repository slug" },
+              ...PAGINATION_BASE_SCHEMA,
+              all: PAGINATION_ALL_SCHEMA,
+            },
+            required: ["workspace", "repo_slug"],
+          },
+        },
+        {
+          name: "getBranch",
+          description: "Get details for a specific branch including its latest commit",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workspace: { type: "string", description: "Bitbucket workspace name" },
+              repo_slug: { type: "string", description: "Repository slug" },
+              branch: { type: "string", description: "Branch name" },
+            },
+            required: ["workspace", "repo_slug", "branch"],
+          },
+        },
+        {
+          name: "listCommits",
+          description: "List commits in a repository, optionally filtered by branch/ref and/or file path",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workspace: { type: "string", description: "Bitbucket workspace name" },
+              repo_slug: { type: "string", description: "Repository slug" },
+              branch: {
+                type: "string",
+                description: "Branch name or ref to list commits from (e.g. 'main', 'feature/my-branch')",
+              },
+              path: {
+                type: "string",
+                description: "Limit to commits that modified this file or directory path",
+              },
+              ...PAGINATION_BASE_SCHEMA,
+              all: PAGINATION_ALL_SCHEMA,
+            },
+            required: ["workspace", "repo_slug"],
+          },
+        },
+        {
+          name: "getCommit",
+          description: "Get details for a specific commit by its hash",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workspace: { type: "string", description: "Bitbucket workspace name" },
+              repo_slug: { type: "string", description: "Repository slug" },
+              commit: { type: "string", description: "Commit hash (full or abbreviated)" },
+            },
+            required: ["workspace", "repo_slug", "commit"],
+          },
+        },
+        {
+          name: "getCommitDiff",
+          description: "Get the diff for a commit or between two commits/branches. Use a single hash to diff against its parent, or 'ref1..ref2' to diff between two refs (e.g. 'main..feature/my-branch' or 'abc123..def456')",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workspace: { type: "string", description: "Bitbucket workspace name" },
+              repo_slug: { type: "string", description: "Repository slug" },
+              spec: {
+                type: "string",
+                description: "A single commit hash (diffs against parent), or two refs separated by '..' (e.g. 'main..feature' or 'abc123..def456')",
+              },
+            },
+            required: ["workspace", "repo_slug", "spec"],
+          },
+        },
+        {
+          name: "getSource",
+          description: "Get file contents or directory listing at a given path and revision. Returns raw file contents for files, or a list of entries for directories.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workspace: { type: "string", description: "Bitbucket workspace name" },
+              repo_slug: { type: "string", description: "Repository slug" },
+              path: {
+                type: "string",
+                description: "File or directory path (e.g. 'src/index.ts' or 'src/'). Omit for root.",
+              },
+              commit: {
+                type: "string",
+                description: "Commit hash or branch name. Defaults to the repository's main branch.",
+              },
+            },
+            required: ["workspace", "repo_slug"],
+          },
+        },
+        {
+          name: "getFileHistory",
+          description: "Get the list of commits that modified a specific file",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workspace: { type: "string", description: "Bitbucket workspace name" },
+              repo_slug: { type: "string", description: "Repository slug" },
+              path: { type: "string", description: "File path to get history for" },
+              commit: {
+                type: "string",
+                description: "Start from this commit hash or branch name. Defaults to main branch.",
+              },
+              ...PAGINATION_BASE_SCHEMA,
+              all: PAGINATION_ALL_SCHEMA,
+            },
+            required: ["workspace", "repo_slug", "path"],
+          },
+        },
+        {
+          name: "searchCode",
+          description: "Search for code across repositories in a workspace",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workspace: { type: "string", description: "Bitbucket workspace name" },
+              query: { type: "string", description: "Search query string" },
+              ...PAGINATION_BASE_SCHEMA,
+            },
+            required: ["workspace", "query"],
+          },
+        },
       ].filter(
         (tool) =>
           this.config.allowDangerousCommands === true ||
@@ -2259,6 +2389,66 @@ class BitbucketServer {
             return await this.getEffectiveDefaultReviewers(
               args.workspace as string,
               args.repo_slug as string
+            );
+          case "listBranches":
+            return await this.listBranches(
+              args.workspace as string,
+              args.repo_slug as string,
+              args.pagelen as number,
+              args.page as number,
+              args.all as boolean
+            );
+          case "getBranch":
+            return await this.getBranch(
+              args.workspace as string,
+              args.repo_slug as string,
+              args.branch as string
+            );
+          case "listCommits":
+            return await this.listCommits(
+              args.workspace as string,
+              args.repo_slug as string,
+              args.branch as string,
+              args.path as string,
+              args.pagelen as number,
+              args.page as number,
+              args.all as boolean
+            );
+          case "getCommit":
+            return await this.getCommit(
+              args.workspace as string,
+              args.repo_slug as string,
+              args.commit as string
+            );
+          case "getCommitDiff":
+            return await this.getCommitDiff(
+              args.workspace as string,
+              args.repo_slug as string,
+              args.spec as string
+            );
+          case "getSource":
+            return await this.getSource(
+              args.workspace as string,
+              args.repo_slug as string,
+              args.path as string,
+              args.commit as string
+            );
+          case "getFileHistory":
+            return await this.getFileHistory(
+              args.workspace as string,
+              args.repo_slug as string,
+              args.path as string,
+              args.commit as string,
+              args.pagelen as number,
+              args.page as number,
+              args.all as boolean
+            );
+          case "searchCode":
+            return await this.searchCode(
+              args.workspace as string,
+              args.query as string,
+              args.pagelen as number,
+              args.page as number
             );
           default:
             throw new McpError(
@@ -4892,6 +5082,210 @@ class BitbucketServer {
         `Failed to get pull request statuses: ${
           error instanceof Error ? error.message : String(error)
         }`
+      );
+    }
+  }
+
+  async listBranches(
+    workspace: string,
+    repo_slug: string,
+    pagelen?: number,
+    page?: number,
+    all?: boolean
+  ) {
+    try {
+      const wsName = workspace || this.config.defaultWorkspace;
+      logger.info("Listing branches", { workspace: wsName, repo_slug });
+      const result = await this.paginator.fetchValues(
+        `/repositories/${wsName}/${repo_slug}/refs/branches`,
+        { pagelen, page, all, description: "listBranches" }
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.values, null, 2) }],
+      };
+    } catch (error) {
+      logger.error("Error listing branches", { error, workspace, repo_slug });
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to list branches: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async getBranch(workspace: string, repo_slug: string, branch: string) {
+    try {
+      const wsName = workspace || this.config.defaultWorkspace;
+      logger.info("Getting branch", { workspace: wsName, repo_slug, branch });
+      const response = await this.api.get(
+        `/repositories/${wsName}/${repo_slug}/refs/branches/${encodeURIComponent(branch)}`
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }],
+      };
+    } catch (error) {
+      logger.error("Error getting branch", { error, workspace, repo_slug, branch });
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to get branch: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async listCommits(
+    workspace: string,
+    repo_slug: string,
+    branch?: string,
+    path?: string,
+    pagelen?: number,
+    page?: number,
+    all?: boolean
+  ) {
+    try {
+      const wsName = workspace || this.config.defaultWorkspace;
+      logger.info("Listing commits", { workspace: wsName, repo_slug, branch, path });
+      const params: Record<string, any> = {};
+      if (branch) params.include = branch;
+      if (path) params.path = path;
+      const result = await this.paginator.fetchValues(
+        `/repositories/${wsName}/${repo_slug}/commits`,
+        { pagelen, page, all, params, description: "listCommits" }
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.values, null, 2) }],
+      };
+    } catch (error) {
+      logger.error("Error listing commits", { error, workspace, repo_slug });
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to list commits: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async getCommit(workspace: string, repo_slug: string, commit: string) {
+    try {
+      const wsName = workspace || this.config.defaultWorkspace;
+      logger.info("Getting commit", { workspace: wsName, repo_slug, commit });
+      const response = await this.api.get(
+        `/repositories/${wsName}/${repo_slug}/commit/${commit}`
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }],
+      };
+    } catch (error) {
+      logger.error("Error getting commit", { error, workspace, repo_slug, commit });
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to get commit: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async getCommitDiff(workspace: string, repo_slug: string, spec: string) {
+    try {
+      const wsName = workspace || this.config.defaultWorkspace;
+      logger.info("Getting commit diff", { workspace: wsName, repo_slug, spec });
+      const response = await this.api.get(
+        `/repositories/${wsName}/${repo_slug}/diff/${spec}`,
+        { headers: { Accept: "text/plain" }, responseType: "text" }
+      );
+      return {
+        content: [{ type: "text", text: response.data }],
+      };
+    } catch (error) {
+      logger.error("Error getting commit diff", { error, workspace, repo_slug, spec });
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to get commit diff: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async getSource(
+    workspace: string,
+    repo_slug: string,
+    path?: string,
+    commit?: string
+  ) {
+    try {
+      const wsName = workspace || this.config.defaultWorkspace;
+      logger.info("Getting source", { workspace: wsName, repo_slug, path, commit });
+      const ref = commit || "HEAD";
+      const filePath = path ? `/${path}` : "";
+      const url = `/repositories/${wsName}/${repo_slug}/src/${ref}${filePath}`;
+      const response = await this.api.get(url, {
+        headers: { Accept: "*/*" },
+        responseType: "text",
+      });
+      const text =
+        typeof response.data === "string"
+          ? response.data
+          : JSON.stringify(response.data, null, 2);
+      return {
+        content: [{ type: "text", text }],
+      };
+    } catch (error) {
+      logger.error("Error getting source", { error, workspace, repo_slug, path });
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to get source: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async getFileHistory(
+    workspace: string,
+    repo_slug: string,
+    path: string,
+    commit?: string,
+    pagelen?: number,
+    page?: number,
+    all?: boolean
+  ) {
+    try {
+      const wsName = workspace || this.config.defaultWorkspace;
+      const ref = commit || "HEAD";
+      logger.info("Getting file history", { workspace: wsName, repo_slug, path, ref });
+      const result = await this.paginator.fetchValues(
+        `/repositories/${wsName}/${repo_slug}/filehistory/${ref}/${path}`,
+        { pagelen, page, all, description: "getFileHistory" }
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.values, null, 2) }],
+      };
+    } catch (error) {
+      logger.error("Error getting file history", { error, workspace, repo_slug, path });
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to get file history: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async searchCode(
+    workspace: string,
+    query: string,
+    pagelen?: number,
+    page?: number
+  ) {
+    try {
+      const wsName = workspace || this.config.defaultWorkspace;
+      logger.info("Searching code", { workspace: wsName, query });
+      const params: Record<string, any> = { search_query: query };
+      if (pagelen) params.pagelen = pagelen;
+      if (page) params.page = page;
+      const response = await this.api.get(
+        `/workspaces/${wsName}/search/code`,
+        { params }
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }],
+      };
+    } catch (error) {
+      logger.error("Error searching code", { error, workspace, query });
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to search code: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
