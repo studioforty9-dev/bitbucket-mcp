@@ -5325,9 +5325,9 @@ class BitbucketServer {
     // Bump the idle timer on every incoming message (connect() sets onmessage,
     // so wrap it afterwards to preserve the SDK's handler).
     const sdkOnMessage = transport.onmessage?.bind(transport);
-    transport.onmessage = (message, extra) => {
+    transport.onmessage = (message) => {
       resetIdle();
-      sdkOnMessage?.(message, extra);
+      sdkOnMessage?.(message);
     };
     resetIdle();
 
