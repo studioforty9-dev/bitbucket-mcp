@@ -5292,7 +5292,45 @@ class BitbucketServer {
 
   async run() {
     const transport = new StdioServerTransport();
+
+    // Self-terminate so bridged sessions (e.g. supergateway streamableHttp) that
+    // are never explicitly torn down can't leave this process lingering and eating RAM.
+    let shuttingDown = false;
+    const shutdown = (reason: string) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      logger.info("Shutting down", { reason });
+      process.exit(0);
+    };
+
+    // Exit when the stdio pipe closes or on a termination signal.
+    process.stdin.on("end", () => shutdown("stdin-end"));
+    process.stdin.on("close", () => shutdown("stdin-close"));
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
+
+    // Idle timeout: exit if no MCP message arrives within the window. This reclaims
+    // orphaned sessions that the HTTP bridge forgot to close. Set 0 to disable.
+    const IDLE_MS = Number(process.env.MCP_IDLE_TIMEOUT_MS ?? 5 * 60_000);
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    const resetIdle = () => {
+      if (!IDLE_MS) return;
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => shutdown("idle-timeout"), IDLE_MS);
+      idleTimer.unref(); // never let the timer itself keep the event loop alive
+    };
+
     await this.server.connect(transport);
+
+    // Bump the idle timer on every incoming message (connect() sets onmessage,
+    // so wrap it afterwards to preserve the SDK's handler).
+    const sdkOnMessage = transport.onmessage?.bind(transport);
+    transport.onmessage = (message, extra) => {
+      resetIdle();
+      sdkOnMessage?.(message, extra);
+    };
+    resetIdle();
+
     logger.info("Bitbucket MCP server running on stdio");
   }
 }
