@@ -5211,7 +5211,8 @@ class BitbucketServer {
       const wsName = workspace || this.config.defaultWorkspace;
       logger.info("Getting source", { workspace: wsName, repo_slug, path, commit });
       const ref = commit || "HEAD";
-      const filePath = path ? `/${path}` : "";
+      // Root needs a trailing slash: /src/{ref} without one is a 404.
+      const filePath = `/${(path ?? "").replace(/^\/+/, "")}`;
       const url = `/repositories/${wsName}/${repo_slug}/src/${ref}${filePath}`;
       const response = await this.api.get(url, {
         headers: { Accept: "*/*" },
